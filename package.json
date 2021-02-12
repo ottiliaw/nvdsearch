@@ -1,0 +1,21 @@
+{
+  "name": "nvdsearch",
+  "version": "1.0.0",
+  "description": "Fetches vulnerability information from the NVD",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ottiliaw/nvdsearch.git"
+  },
+  "author": "Ottilia Westerlund",
+  "bugs": {
+    "url": "https://github.com/ottiliaw/nvdsearch/issues"
+  },
+  "homepage": "https://github.com/ottiliaw/nvdsearch#readme",
+  "bin": {
+    "nvdsearch": "./bin/index.js"
+  }
+}

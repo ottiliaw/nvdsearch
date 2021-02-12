@@ -16,6 +16,9 @@
   },
   "homepage": "https://github.com/ottiliaw/nvdsearch#readme",
   "bin": {
-    "nvdsearch": "./bin/index.js"
+    "nvdsearch": "bin/index.js"
+  },
+  "dependencies": {
+    "yargs": "^16.2.0"
   }
 }

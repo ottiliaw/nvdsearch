@@ -19,6 +19,8 @@
     "nvdsearch": "bin/index.js"
   },
   "dependencies": {
+    "node-fetch": "^2.6.1",
+    "unzipper": "^0.10.11",
     "yargs": "^16.2.0"
   }
 }

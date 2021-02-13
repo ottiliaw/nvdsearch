@@ -2,30 +2,43 @@
 const yargs = require("yargs");
 const fetch = require('node-fetch');
 const unzip = require('unzipper');
+const colors = require('colors');
 const {pipeline} = require('stream');
 const {promisify} = require('util');
 const fs = require('fs');
-
 
 const url = 'https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-'
 
 const options = yargs
  .usage("Usage: --id <cve-id>")
  .option("id", { alias: "cveId", describe: "CVE ID", type: "string", demandOption: true })
+ .check((argv) => {
+    const regex = new RegExp("CVE-[0-9]{4}-[0-9]{4,7}");
+    if ((regex.test(argv.id)) === false) {
+      throw new Error('Error! Invalid CVE-ID format')
+    } else if (argv.id.split('-')[1] < 1998 )  {
+        throw new Error('Error! No CVE data avaliable before 1999.')
+    } else {
+        return true
+    }
+  })
  .argv;
 
 const cveId = options.cveId;
 
-async function readPrintdata(cveId){ 
-    const JSONfile = await getFileData(cveId)
-    const text = await consumeData(JSONfile);
-    console.log(text)
+async function getAndPrintCVEInfo(cveId){ 
+    let cveYear = cveId.split('-')[1];
+    if (cveYear < 2002 ) {
+        // this is a bit of a quirk, but all the data pre-2002 is in the 2002 JSON
+        cveYear = 2002;
+    }
+    const JSONfile = await getData(cveYear)
+    const text = await consumeData(JSONfile, cveYear);
+    prettyPrint(text);
 }
 
-
-async function getFileData(cveId){
+async function getData(year){
     const streamPipeline = promisify(pipeline);
-    const [ cve, year, identifier] = cveId.split('-');
 
     const response = await fetch(url+`${year}.json.zip`);
 
@@ -42,7 +55,7 @@ async function getFileData(cveId){
     return `./data_store/unzip/nvdcve-1.1-${year}.json`
 }
 
-async function consumeData(JSONfile){ 
+async function consumeData(JSONfile, year){ 
     let rawdata = fs.readFileSync(JSONfile);
     let parsedJSON = JSON.parse(rawdata);
     const cveItem = parsedJSON.CVE_Items;
@@ -52,12 +65,32 @@ async function consumeData(JSONfile){
         if (cve.cve.CVE_data_meta.ID === options.cveId) {
             text.cveID = options.cveId;
             text.description = cve.cve.description.description_data[0].value
-            text.impact = cve.impact.baseMetricV3.cvssV3.baseScore + ' ' + cve.impact.baseMetricV3.cvssV3.vectorString
+            text.impact = (year < 2002 ) ? cve.impact.baseMetricV3.cvssV3.baseScore : cve.impact.baseMetricV2.cvssV2.baseScore
+            text.impactVectorString = (year < 2002 ) ? cve.impact.baseMetricV3.cvssV3.vectorString  : cve.impact.baseMetricV2.cvssV2.vectorString
         }
     });
     return text;
 }
 
-readPrintdata(cveId);
+function prettyPrint(text){    
+    let impact;
+    if (text.impact < 4 ) {
+        impact = text.impact.toString().green
+    } else if (text.impact < 7 ) {
+        impact = text.impact.toString().yellow
+    } else {
+        impact = text.impact.toString().red
+    }
+
+    console.log('\n')
+    console.log(text.cveID.magenta)
+    console.log('-------------'.grey)
+    console.log(text.description)
+    console.log('-------------'.grey)
+    console.log(impact  + ' ' + text.impactVectorString.grey)
+    console.log('\n')
+}
+
+getAndPrintCVEInfo(cveId);
 
 

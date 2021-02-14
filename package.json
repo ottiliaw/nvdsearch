@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "colors": "^1.4.0",
+    "fs-extra": "^9.1.0",
     "node-fetch": "^2.6.1",
     "unzipper": "^0.10.11",
     "yargs": "^16.2.0"

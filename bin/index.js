@@ -6,12 +6,18 @@ const colors = require('colors');
 const {pipeline} = require('stream');
 const {promisify} = require('util');
 const fs = require('fs');
+const fsExtra = require('fs-extra')
+
+
 
 const url = 'https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-'
 
 const options = yargs
  .usage("Usage: --id <cve-id>")
- .option("id", { alias: "cveId", describe: "CVE ID", type: "string", demandOption: true })
+ .options({
+    "clear-cache": { describe: "Clear the cache", type: "boolean", },
+     "id": { alias: "cveId", describe: "CVE ID", type: "string", demandOption: true }
+    })
  .check((argv) => {
     const regex = new RegExp("CVE-[0-9]{4}-[0-9]{4,7}");
     if ((regex.test(argv.id)) === false) {
@@ -24,13 +30,15 @@ const options = yargs
   })
  .argv;
 
-const cveId = options.cveId;
 
-async function getAndPrintCVEInfo(cveId){ 
-    let cveYear = cveId.split('-')[1];
+async function getAndPrintCVEInfo(options){ 
+    let cveYear = options.cveId.split('-')[1];
     if (cveYear < 2002 ) {
         // this is a bit of a quirk, but all the data pre-2002 is in the 2002 JSON
         cveYear = 2002;
+    }
+    if (options['clear-cache']) {
+        await deleteData()
     }
     const JSONfile = await getData(cveYear)
     const text = await consumeData(JSONfile, cveYear);
@@ -38,21 +46,30 @@ async function getAndPrintCVEInfo(cveId){
 }
 
 async function getData(year){
-    const streamPipeline = promisify(pipeline);
+    try {
+        if (fs.existsSync(`./data_store/unzip/nvdcve-1.1-${year}.json`)) {
+            return `./data_store/unzip/nvdcve-1.1-${year}.json`
+        
+        } else {
+            const streamPipeline = promisify(pipeline);
 
-    const response = await fetch(url+`${year}.json.zip`);
-
-    if (!response.ok) throw new Error(`Error! Unexpected response ${response.statusText}`);
-
-    await streamPipeline(response.body, fs.createWriteStream(`./data_store/zip/nvdcve-1.1-${year}.json.zip`));
-
-    await new Promise((resolve, reject) => { fs.createReadStream(`./data_store/zip/nvdcve-1.1-${year}.json.zip`)
-    .pipe(unzip.Extract({ path: `./data_store/unzip` }))
-    .on('close', () => resolve())
-    .on('error', (error) => reject(error))
-    })
-
-    return `./data_store/unzip/nvdcve-1.1-${year}.json`
+            const response = await fetch(url+`${year}.json.zip`);
+        
+            if (!response.ok) throw new Error(`Error! Unexpected response ${response.statusText}`);
+        
+            await streamPipeline(response.body, fs.createWriteStream(`./data_store/zip/nvdcve-1.1-${year}.json.zip`));
+        
+            await new Promise((resolve, reject) => { fs.createReadStream(`./data_store/zip/nvdcve-1.1-${year}.json.zip`)
+            .pipe(unzip.Extract({ path: `./data_store/unzip` }))
+            .on('close', () => resolve())
+            .on('error', (error) => reject(error))
+            })
+        
+            return `./data_store/unzip/nvdcve-1.1-${year}.json`
+        }
+      } catch(err) {
+        console.error(err)
+      }
 }
 
 async function consumeData(JSONfile, year){ 
@@ -70,6 +87,11 @@ async function consumeData(JSONfile, year){
         }
     });
     return text;
+}
+
+async function deleteData(){
+    fsExtra.emptyDirSync('./data_store/zip')
+    fsExtra.emptyDirSync('./data_store/unzip')
 }
 
 function prettyPrint(text){    
@@ -91,6 +113,6 @@ function prettyPrint(text){
     console.log('\n')
 }
 
-getAndPrintCVEInfo(cveId);
+getAndPrintCVEInfo(options);
 
 

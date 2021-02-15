@@ -8,14 +8,12 @@ const {promisify} = require('util');
 const fs = require('fs');
 const fsExtra = require('fs-extra')
 
-
-
 const url = 'https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-'
 
 const options = yargs
  .usage("Usage: --id <cve-id>")
  .options({
-    "clear-cache": { describe: "Clear the cache", type: "boolean", },
+    "clear-cache": { describe: "Clears old data. Use flag for the latest CVE updates.", type: "boolean", },
      "id": { alias: "cveId", describe: "CVE ID", type: "string", demandOption: true }
     })
  .check((argv) => {
